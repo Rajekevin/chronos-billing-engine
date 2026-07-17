@@ -4,6 +4,12 @@ API REST d'ingestion d'événements à fort trafic et de facturation, construite
 
 > Projet portfolio — voir [`ARCHITECTURE.md`](./ARCHITECTURE.md) pour une lecture orientée décision technique/RH, et [`SECURITY.md`](./SECURITY.md) pour la couverture OWASP.
 
+## Aperçu
+
+C'est une API pure (pas d'interface graphique en production) : un seul endpoint métier, `POST /api/v1/events`. Pour explorer le flux sans taper de `curl`, le projet inclut une page de démo (`public/demo.html`, servie par le projet lui-même une fois la stack lancée) qui fait tourner le cycle complet — un client simule des appels, le worker les traite en tâche de fond, puis la facture est générée à partir des données réellement stockées en base.
+
+![Aperçu de la page de démo](./docs/demo-preview.png)
+
 ## Stack technique
 
 | Composant | Choix | Rôle |
@@ -67,6 +73,14 @@ curl -i -X POST http://localhost:8000/api/v1/events \
 Réponse attendue : `202 Accepted` (l'événement est déposé sur la queue Messenger, puis traité de manière asynchrone par `messenger-worker` — vérifiable dans ses logs : `docker compose logs -f messenger-worker`).
 
 Renvoyer exactement la même requête avec la même `Idempotency-Key` ne crée **pas** de second enregistrement (voir la section Idempotence de `ARCHITECTURE.md`).
+
+Pour consulter la facture calculée à partir des événements enregistrés (1000 appels/mois inclus, puis 0,02 €/appel — voir `BillingCalculator`) :
+
+```bash
+curl -s "http://localhost:8000/api/v1/clients/client-00001-abcd/invoice" -H "X-Api-Key: local-dev-api-key"
+```
+
+Ou directement via la page de démo interactive : **http://localhost:8000/demo.html**
 
 ### 5. Lancer les tests et l'analyse statique
 
