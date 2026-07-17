@@ -1,0 +1,6 @@
+framework:
+    rate_limiter:
+        event_ingestion:
+            policy: 'sliding_window'
+            limit: 200
+            interval: '60 seconds'

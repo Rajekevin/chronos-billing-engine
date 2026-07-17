@@ -1,0 +1,18 @@
+security:
+    password_hashers:
+        Symfony\Component\Security\Core\User\InMemoryUser: 'auto'
+
+    providers:
+        api_clients:
+            memory:
+                users: []
+
+    firewalls:
+        api:
+            pattern: ^/api/v1/
+            stateless: true
+            custom_authenticators:
+                - App\Infrastructure\Security\ApiKeyAuthenticator
+
+    access_control:
+        - { path: ^/api/v1/, roles: ROLE_API_CLIENT }

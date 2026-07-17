@@ -1,0 +1,15 @@
+doctrine:
+    dbal:
+        url: '%env(resolve:DATABASE_URL)%'
+        # Force TLS to Cloud SQL / managed Postgres in prod (OWASP A02 -
+        # Cryptographic Failures: never send credentials/data in clear text).
+        options:
+            sslmode: '%env(DB_SSL_MODE)%'
+    orm:
+        naming_strategy: doctrine.orm.naming_strategy.underscore_number_aware
+        auto_mapping: true
+        mappings:
+            App:
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Infrastructure/Persistence/Doctrine/Entity'
+                prefix: 'App\Infrastructure\Persistence\Doctrine\Entity'

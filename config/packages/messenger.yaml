@@ -1,0 +1,23 @@
+framework:
+    messenger:
+        failure_transport: failed
+
+        transports:
+            # Doctrine transport backed by the same PostgreSQL instance:
+            # zero extra infra to run the lab locally. Swap the DSN for
+            # amqp:// or Google Pub/Sub (via a community bridge) in
+            # production for real horizontal scaling of workers.
+            async:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    use_notify: true
+                    check_delayed_interval: 60000
+                retry_strategy:
+                    max_retries: 3
+                    multiplier: 2
+
+            failed:
+                dsn: 'doctrine://default?queue_name=failed'
+
+        routing:
+            App\Application\Message\LogEventMessage: async

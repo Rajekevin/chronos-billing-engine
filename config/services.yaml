@@ -1,0 +1,34 @@
+parameters:
+    api_key_hash: '%env(API_KEY_HASH)%'
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/Kernel.php'
+            - '../src/Domain/Model/'
+            - '../src/Domain/ValueObject/'
+            - '../src/Domain/Exception/'
+
+    # Explicit binding: the Domain interface is wired to its Infrastructure
+    # adapter here, in the Composition Root - never inside Domain/Application.
+    App\Domain\Port\EventRepositoryInterface:
+        alias: App\Infrastructure\Persistence\Doctrine\Repository\DoctrineEventRepository
+
+    App\Domain\Port\InvoiceRepositoryInterface:
+        alias: App\Infrastructure\Persistence\Doctrine\Repository\DoctrineInvoiceRepository
+
+    App\Domain\Port\IdempotencyGuardInterface:
+        alias: App\Infrastructure\Persistence\Doctrine\Repository\DoctrineIdempotencyGuard
+
+    App\Infrastructure\Security\ApiKeyAuthenticator:
+        arguments:
+            $expectedApiKeyHash: '%api_key_hash%'
+
+    App\Infrastructure\Controller\EventController:
+        arguments:
+            $eventIngestionLimiter: '@limiter.event_ingestion'

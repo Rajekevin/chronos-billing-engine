@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chronos Billing Engine — Démo guidée</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #0b0d12;
+    --panel: #131722;
+    --border: #232a3a;
+    --text: #e6e9f0;
+    --muted: #8b93a7;
+    --accent: #5b8cff;
+    --accent-dim: rgba(91,140,255,.15);
+    --ok: #3ecf8e;
+    --ok-dim: rgba(62,207,142,.15);
+    --err: #ff5d6c;
+    --err-dim: rgba(255,93,108,.15);
+    --mono: "SF Mono", Consolas, "Cascadia Code", monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f6f9;
+      --panel: #ffffff;
+      --border: #e1e4ec;
+      --text: #1a1d29;
+      --muted: #5c6478;
+      --accent: #3860d6;
+      --accent-dim: rgba(56,96,214,.1);
+      --ok: #128a5c;
+      --ok-dim: rgba(18,138,92,.1);
+      --err: #c0293b;
+      --err-dim: rgba(192,41,59,.1);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 40px 20px 100px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 8px; }
+  .scenario {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 0.9rem;
+    margin-bottom: 32px;
+  }
+  .scenario b { color: var(--accent); }
+
+  .step {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .step-num {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--muted);
+  }
+  .step.done .step-num { background: var(--ok-dim); border-color: var(--ok); color: var(--ok); }
+  .step-line {
+    flex: 0 0 auto;
+    width: 34px;
+    display: flex;
+    justify-content: center;
+  }
+  .step-line::before {
+    content: '';
+    width: 2px;
+    background: var(--border);
+    flex: 1;
+  }
+  .step-body { flex: 1; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px;
+  }
+  .card h2 { font-size: 1rem; margin: 0 0 6px; }
+  .card .desc { color: var(--muted); font-size: 0.85rem; margin: 0 0 16px; }
+
+  label { display: block; font-size: 0.78rem; color: var(--muted); margin: 12px 0 6px; }
+  label:first-child { margin-top: 0; }
+  input {
+    width: 100%;
+    padding: 9px 11px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+  .row { display: flex; gap: 10px; }
+  .row > div { flex: 1; }
+  button {
+    margin-top: 16px;
+    padding: 11px 16px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.55; cursor: default; }
+  button.secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-weight: 500;
+  }
+  button.full { width: 100%; }
+
+  .counter {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .tile {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+  .tile .n { font-family: var(--mono); font-size: 1.3rem; font-weight: 700; }
+  .tile .l { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+
+  .log {
+    margin-top: 14px;
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    color: var(--muted);
+    max-height: 130px;
+    overflow: auto;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  .log div { padding: 1px 0; }
+  .log .ok-line { color: var(--ok); }
+  .log .err-line { color: var(--err); }
+
+  .invoice {
+    display: none;
+    margin-top: 18px;
+    border-top: 1px dashed var(--border);
+    padding-top: 16px;
+  }
+  .invoice-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.88rem;
+    padding: 5px 0;
+  }
+  .invoice-row .l { color: var(--muted); }
+  .invoice-row.total { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 10px; font-weight: 700; font-size: 1rem; }
+  .invoice-row.total .v { color: var(--accent); }
+
+  .whatif {
+    margin-top: 24px;
+  }
+  .whatif input[type=range] { width: 100%; margin-top: 10px; accent-color: var(--accent); }
+  .whatif-result {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 10px;
+    font-family: var(--mono);
+  }
+  .whatif-result .big { font-size: 1.6rem; font-weight: 700; color: var(--accent); }
+  .formula { font-size: 0.76rem; color: var(--muted); margin-top: 6px; }
+
+  .hint { font-size: 0.78rem; color: var(--muted); margin-top: 10px; }
+  code { font-family: var(--mono); background: var(--bg); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border); font-size: 0.85em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Chronos Billing Engine</h1>
+  <p class="sub">Parcours guidé : de la consommation de ton API par un client jusqu'à sa facture.</p>
+
+  <div class="scenario">
+    L'API expose un seul endpoint métier : <code>POST /api/v1/events</code>. Un client externe
+    (imagine une app qui consomme ton API météo) appelle cet endpoint à chaque fois qu'il utilise
+    ton service. La règle de facturation codée dans <code>BillingCalculator</code> est simple :
+    <b>1000 appels/mois inclus</b>, puis <b>0,02&nbsp;€ par appel</b> au-delà. Les 3 étapes ci-dessous
+    suivent un appel du client jusqu'à la facture générée à partir des données réellement stockées en base.
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="step" id="step1">
+    <div>
+      <div class="step-num">1</div>
+      <div class="step-line"></div>
+    </div>
+    <div class="step-body">
+      <div class="card">
+        <h2>Le client consomme ton API</h2>
+        <p class="desc">Le bouton ci-dessous envoie N requêtes réelles <code>POST /api/v1/events</code> au serveur, une par "appel" simulé du client. Chaque requête porte une <code>Idempotency-Key</code> différente, générée côté navigateur, pour que le serveur les traite comme des événements distincts.</p>
+
+        <label for="clientid">Identifiant du client</label>
+        <input id="clientid" value="client-00001-abcd">
+
+        <div class="row">
+          <div>
+            <label for="endpoint">Endpoint appelé par le client</label>
+            <input id="endpoint" value="/data/weather/current">
+          </div>
+          <div>
+            <label for="count">Nombre d'appels à simuler</label>
+            <input id="count" type="number" value="15" min="1" max="300">
+          </div>
+        </div>
+
+        <button class="full" id="btn-simulate" onclick="simulateUsage()">Simuler la consommation du client</button>
+
+        <div class="counter">
+          <div class="tile"><div class="n" id="sent-count">0</div><div class="l">envoyés</div></div>
+          <div class="tile"><div class="n" id="ok-count">0</div><div class="l">acceptés (202)</div></div>
+          <div class="tile"><div class="n" id="err-count">0</div><div class="l">refusés</div></div>
+        </div>
+        <div class="log" id="log1"></div>
+
+        <div style="margin-top:18px;border-top:1px dashed var(--border);padding-top:14px;">
+          <p class="desc" style="margin-bottom:10px;">
+            Il y a aussi un rate-limiter configuré dans <code>config/packages/rate_limiter.yaml</code> :
+            <b>200 requêtes/minute maximum</b>, compté par adresse IP (pas par <code>client_id</code> —
+            regarde <code>EventController::__invoke()</code>, la ligne
+            <code>$this->eventIngestionLimiter->create($request->getClientIp())</code>). Avec 15 appels ci-dessus
+            tu restes largement en dessous. Monte le champ "Nombre d'appels" à <b>220</b> et relance : les 200
+            premières requêtes passent en <code>202</code>, les 20 suivantes basculent en
+            <code>429 Too Many Requests</code> — regarde le compteur "refusés" et le journal en dessous.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step" id="step2">
+    <div>
+      <div class="step-num">2</div>
+      <div class="step-line"></div>
+    </div>
+    <div class="step-body">
+      <div class="card">
+        <h2>Le worker traite en tâche de fond</h2>
+        <p class="desc">Ton serveur HTTP a déjà répondu <code>202</code> sans toucher la base — c'est le <code>messenger-worker</code>, un processus séparé, qui écrit réellement chaque événement, en vérifiant qu'il ne l'a jamais vu (idempotence).</p>
+        <p class="hint">Ouvre un terminal à côté et lance :</p>
+        <pre style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:var(--mono);font-size:0.8rem;overflow:auto;">docker compose logs -f messenger-worker</pre>
+        <p class="hint">Tu y verras chaque événement inséré en base quelques dizaines de millisecondes après l'étape 1 — la facturation est <b>découplée</b> du trafic entrant, donc ton API ne ralentit jamais à cause de la facturation.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step" id="step3">
+    <div>
+      <div class="step-num">3</div>
+    </div>
+    <div class="step-body">
+      <div class="card">
+        <h2>Tu factures le client</h2>
+        <p class="desc">En fin de mois (ou à la demande ici), tu additionnes tous les événements réellement enregistrés pour ce client et tu appliques la règle de tarification.</p>
+
+        <button class="full" onclick="generateInvoice()">Générer la facture de <span id="invoice-client-label">client-00001-abcd</span></button>
+
+        <div class="invoice" id="invoice-result">
+          <div class="invoice-row"><span class="l">Appels enregistrés (réels, en base)</span><span class="v" id="inv-total">—</span></div>
+          <div class="invoice-row"><span class="l">Inclus gratuitement</span><span class="v" id="inv-free">—</span></div>
+          <div class="invoice-row"><span class="l">Appels facturables</span><span class="v" id="inv-billable">—</span></div>
+          <div class="invoice-row"><span class="l">Prix par appel</span><span class="v" id="inv-price">—</span></div>
+          <div class="invoice-row total"><span class="l">Montant à facturer</span><span class="v" id="inv-amount">—</span></div>
+        </div>
+      </div>
+
+      <div class="card whatif">
+        <h2>Et si ce client grossissait ?</h2>
+        <p class="desc">Cette simulation ne suffit pas à dépasser le seuil gratuit de 1000 appels — normal, c'est une démo. Cette réglette applique la <b>vraie formule</b> de <code>BillingCalculator</code> pour te montrer ce que tu factuerais à plus grande échelle.</p>
+        <label for="whatif-range">Appels simulés sur un mois : <b id="whatif-count">5 000</b></label>
+        <input id="whatif-range" type="range" min="0" max="50000" step="100" value="5000" oninput="updateWhatIf()">
+        <div class="whatif-result">
+          <span>Montant facturé</span>
+          <span class="big" id="whatif-amount">80,00 €</span>
+        </div>
+        <p class="formula" id="whatif-formula"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_KEY = 'local-dev-api-key';
+let FREE_TIER = 1000;
+let PRICE_PER_EVENT_CENTS = 2;
+
+function log(elId, text, cls) {
+  const el = document.getElementById(elId);
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = text;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function markDone(stepId) {
+  document.getElementById(stepId).classList.add('done');
+}
+
+async function simulateUsage() {
+  const btn = document.getElementById('btn-simulate');
+  const clientId = document.getElementById('clientid').value.trim();
+  const endpoint = document.getElementById('endpoint').value.trim();
+  const count = Math.max(1, Math.min(300, parseInt(document.getElementById('count').value, 10) || 1));
+
+  document.getElementById('invoice-client-label').textContent = clientId;
+
+  btn.disabled = true;
+  btn.textContent = 'Simulation en cours...';
+  document.getElementById('sent-count').textContent = '0';
+  document.getElementById('ok-count').textContent = '0';
+  document.getElementById('err-count').textContent = '0';
+  document.getElementById('log1').innerHTML = '';
+
+  let sent = 0, ok = 0, err = 0;
+
+  for (let i = 0; i < count; i++) {
+    const idk = 'sim-' + crypto.randomUUID();
+    try {
+      const res = await fetch('/api/v1/events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Api-Key': API_KEY,
+          'Idempotency-Key': idk,
+        },
+        body: JSON.stringify({ client_id: clientId, endpoint: endpoint }),
+      });
+      sent++;
+      if (res.status === 202) {
+        ok++;
+        log('log1', `#${i + 1} → 202 Accepted (${idk.slice(0, 12)}…)`, 'ok-line');
+      } else {
+        err++;
+        const body = await res.text();
+        log('log1', `#${i + 1} → ${res.status}: ${body}`, 'err-line');
+      }
+    } catch (e) {
+      sent++; err++;
+      log('log1', `#${i + 1} → erreur réseau: ${e}`, 'err-line');
+    }
+    document.getElementById('sent-count').textContent = sent;
+    document.getElementById('ok-count').textContent = ok;
+    document.getElementById('err-count').textContent = err;
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Simuler la consommation du client';
+  markDone('step1');
+  markDone('step2');
+}
+
+async function generateInvoice() {
+  const clientId = document.getElementById('clientid').value.trim();
+  try {
+    const res = await fetch(`/api/v1/clients/${encodeURIComponent(clientId)}/invoice`, {
+      headers: { 'X-Api-Key': API_KEY },
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert('Erreur: ' + (data.error || res.status));
+      return;
+    }
+
+    FREE_TIER = data.free_tier_threshold;
+    PRICE_PER_EVENT_CENTS = data.price_per_event_cents;
+
+    document.getElementById('inv-total').textContent = data.total_events;
+    document.getElementById('inv-free').textContent = data.free_tier_threshold.toLocaleString('fr-FR');
+    document.getElementById('inv-billable').textContent = data.billable_events;
+    document.getElementById('inv-price').textContent = (data.price_per_event_cents / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+    document.getElementById('inv-amount').textContent = (data.amount_cents / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+    document.getElementById('invoice-result').style.display = 'block';
+    markDone('step3');
+    updateWhatIf();
+  } catch (e) {
+    alert('Erreur réseau: ' + e);
+  }
+}
+
+function updateWhatIf() {
+  const n = parseInt(document.getElementById('whatif-range').value, 10);
+  document.getElementById('whatif-count').textContent = n.toLocaleString('fr-FR');
+  const billable = Math.max(0, n - FREE_TIER);
+  const amountCents = billable * PRICE_PER_EVENT_CENTS;
+  document.getElementById('whatif-amount').textContent = (amountCents / 100).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+  document.getElementById('whatif-formula').textContent =
+    `max(0, ${n.toLocaleString('fr-FR')} − ${FREE_TIER.toLocaleString('fr-FR')} gratuits) × ${(PRICE_PER_EVENT_CENTS / 100).toFixed(2)} € = ${billable.toLocaleString('fr-FR')} appels facturables`;
+}
+
+updateWhatIf();
+</script>
+</body>
+</html>

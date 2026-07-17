@@ -1,0 +1,30 @@
+monolog:
+    channels:
+        - billing
+        - messenger
+
+when@dev:
+    monolog:
+        handlers:
+            main:
+                type: stream
+                path: "php://stderr"
+                level: debug
+                channels: ['!event']
+                formatter: monolog.formatter.json
+
+when@prod:
+    monolog:
+        handlers:
+            # Structured JSON to stdout/stderr: Cloud Run / GKE ship this
+            # straight into Google Cloud Logging with no sidecar needed.
+            main:
+                type: stream
+                path: "php://stderr"
+                level: info
+                formatter: monolog.formatter.json
+            # Never log full stack traces of 4xx-caused domain exceptions,
+            # only genuine 5xx/unexpected errors - avoids log noise being
+            # used as a low-effort DoS vector (OWASP A09).
+            deprecation:
+                type: null
